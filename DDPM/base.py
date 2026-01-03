@@ -2,10 +2,11 @@ import torch
 from torch import nn
 from abc import ABC, abstractmethod
 
+
 class BaseScheduler(ABC, nn.Module):
     def __init__(self):
         super().__init__()
-    
+
     @property
     def betas(self) -> torch.Tensor:
         return self._betas
@@ -17,15 +18,15 @@ class BaseScheduler(ABC, nn.Module):
     @property
     def bar_alphas(self) -> torch.Tensor:
         return self._bar_alphas
-    
+
     @property
     def var(self) -> torch.Tensor:
         return self._var
-    
+
     @property
     def timesteps(self) -> int:
         return self._betas.size(0)
-    
+
     def set_betas(self, betas: torch.Tensor) -> None:
         """
         Set betas and update alphas, bar_alphas, var
@@ -36,7 +37,10 @@ class BaseScheduler(ABC, nn.Module):
         self._betas = betas
         self._alphas = 1.0 - betas
         self._bar_alphas = torch.cumprod(self._alphas, dim=0)
-        self._var = (1.0 - self.bar_alphas[:-1]) / (1.0 - self.bar_alphas[1:]) * self.betas
+        self._var = (
+            (1.0 - self.bar_alphas[:-1]) / (1.0 - self.bar_alphas[1:]) * self.betas
+        )
+
 
 class BaseNoiseModel(ABC, nn.Module):
     def __init__(self):
