@@ -3,7 +3,7 @@ from torch import nn
 from abc import ABC, abstractmethod
 
 
-class BaseScheduler(ABC, nn.Module):
+class DDPMScheduler(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -28,32 +28,29 @@ class BaseScheduler(ABC, nn.Module):
         return self._betas.size(0)
 
     def set_betas(self, betas: torch.Tensor) -> None:
-        """
-        Set betas and update alphas, bar_alphas, var
+        """Set betas. Update alphas, bar_alphas
 
-        :param betas:
-        :type betas: torch.Tensor: (T,)
+        Args:
+            betas (torch.Tensor): Shape: (T,)
         """
         self._betas = betas
         self._alphas = 1.0 - betas
         self._bar_alphas = torch.cumprod(self._alphas, dim=0)
-        self._var = (
-            (1.0 - self.bar_alphas[:-1]) / (1.0 - self.bar_alphas[1:]) * self.betas
-        )
 
 
-class BaseNoiseModel(ABC, nn.Module):
+class Denoiser1dModel(ABC, nn.Module):
     def __init__(self):
         super().__init__()
 
     @abstractmethod
     def forward(self, x: torch.Tensor, ts: torch.Tensor) -> torch.Tensor:
-        """
-        :param x: noisy inputs
-        :type x: torch.Tensor: (B, N)
-        :param ts: timesteps for each object in batch
-        :type ts: torch.Tensor: (B,)
-        :return: predicted noise for each feature
-        :rtype: torch.Tensor: (B, N)
+        """Trying to predict added noise for each object.
+
+        Args:
+            x (torch.Tensor): Noisy inputs. Shape: (B, num_features)
+            ts (torch.Tensor): Timesteps for each object in batch. Shape: (B,)
+
+        Returns:
+            torch.Tensor: predicted noise for each object, shape: (B, num_features)
         """
         pass
