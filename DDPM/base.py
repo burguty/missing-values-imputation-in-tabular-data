@@ -51,6 +51,6 @@ class Denoiser1dModel(ABC, nn.Module):
             ts (torch.Tensor): Timesteps for each object in batch. Shape: (B,)
 
         Returns:
-            torch.Tensor: predicted noise for each object, shape: (B, num_features)
+            torch.Tensor: predicted noise for each object. Shape: (B, num_features)
         """
         pass
