@@ -20,10 +20,6 @@ class DDPMScheduler(nn.Module):
         return self._bar_alphas
 
     @property
-    def var(self) -> torch.Tensor:
-        return self._var
-
-    @property
     def timesteps(self) -> int:
         return self._betas.size(0)
 
@@ -33,9 +29,9 @@ class DDPMScheduler(nn.Module):
         Args:
             betas (torch.Tensor): Shape: (T,)
         """
-        self._betas = betas
-        self._alphas = 1.0 - betas
-        self._bar_alphas = torch.cumprod(self._alphas, dim=0)
+        self.register_buffer("_betas", betas)
+        self.register_buffer("_alphas", 1.0 - betas)
+        self.register_buffer("_bar_alphas", torch.cumprod(self._alphas, dim=0))
 
 
 class Denoiser1dModel(ABC, nn.Module):
