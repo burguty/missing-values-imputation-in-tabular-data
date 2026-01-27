@@ -1,8 +1,10 @@
+from typing import Tuple
+
 import torch
 from torch import nn
+
 from . import base
 from . import schedulers
-from typing import Tuple
 
 
 class Diffusion1d(nn.Module):
@@ -10,15 +12,24 @@ class Diffusion1d(nn.Module):
         self,
         num_features: int,
         timesteps: int = 1000,
-        scheduler: base.DDPMScheduler = None,
+        denoiser: base.Denoiser1dModel = None,
+        scheduler: base.Scheduler = None,
     ):
         super().__init__()
+
         self.num_features_ = num_features
         self.timesteps_ = timesteps
 
+        if denoiser is None:
+            self.denoiser_ = None
+        elif isinstance(denoiser, base.Denoiser1dModel):
+            self.denoiser_ = denoiser
+        else:
+            raise ValueError
+
         if scheduler is None:
-            self.scheduler_ = schedulers.CosineScheduler(timesteps)
-        elif isinstance(scheduler, base.DDPMScheduler):
+            self.scheduler_ = schedulers.CosineScheduler(self)
+        elif isinstance(scheduler, base.Scheduler):
             assert (
                 scheduler.timesteps == timesteps
             ), "Schedule must be planned for each timestep"
@@ -29,7 +40,8 @@ class Diffusion1d(nn.Module):
     def forward(
         self, x: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Imitates the forward diffusion process for a randomly sampled timestep
+        """
+        Imitates the forward diffusion process for a randomly sampled timestep
 
         Args:
             x (torch.Tensor): Clean inputs. Shape: (B, num_features)
@@ -40,6 +52,7 @@ class Diffusion1d(nn.Module):
                 - timestep for each sample. Shape: (B,)
                 - noise for each object. Shape: (B, num_features)
         """
+
         ts = torch.randint(0, self.timesteps_, (x.size(0),))
         noise = torch.randn_like(x)
         bar_alphas = self.scheduler_.bar_alphas[ts].unsqueeze(1)
@@ -47,17 +60,11 @@ class Diffusion1d(nn.Module):
         return diffused, ts, noise
 
     @torch.no_grad()
-    def sample(
-        self,
-        denoiser_model: base.Denoiser1dModel,
-        n: int = 5,
-        variance_strategy: str = "posterior",
-    ) -> torch.Tensor:
-        """Sample tabular rows using the reverse diffusion process
+    def sample(self, n: int = 5, variance_strategy: str = "posterior") -> torch.Tensor:
+        """
+        Sample tabular rows using the reverse diffusion process
 
         Args:
-            denoiser_model (base.Denoiser1dModel): Noise predictor (denoiser) used in the reverse diffusion process.
-
             n (int, optional): Sample size. Defaults to 5.
 
             variance_strategy (str, optional):
@@ -69,7 +76,9 @@ class Diffusion1d(nn.Module):
             torch.Tensor: Generated samples. Shape: (n, num_features)
         """
         self.eval()
-        denoiser_model.eval()
+
+        if self.denoiser_ is not None:
+            self.denoiser_.eval()
 
         x = torch.randn(n, self.num_features_)
 
@@ -79,7 +88,7 @@ class Diffusion1d(nn.Module):
             bar_alpha_t = self.scheduler_.bar_alphas[t]
 
             ts = torch.full((n,), t)
-            hat_eps = denoiser_model(x, ts)
+            hat_eps = self.denoiser_(x, ts) if self.denoiser_ is not None else x
 
             x = (
                 x - (1.0 - alpha_t) / torch.sqrt(1.0 - bar_alpha_t) * hat_eps

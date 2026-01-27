@@ -10,3 +10,10 @@ def cosine_beta_schedule(timesteps, s: float = 0.008):
 
 def linear_beta_schedule(timesteps, beta_min: float = 1e-4, beta_max: float = 0.02):
     return torch.linspace(beta_min, beta_max, timesteps)
+
+
+def sinusoidal_activation(x: torch.Tensor, c: torch.Tensor):
+    angles = 2.0 * torch.pi * c.unsqueeze(0) * x.unsqueeze(1)
+    sin = torch.sin(angles)
+    cos = torch.cos(angles)
+    return torch.cat([sin, cos], dim=1)

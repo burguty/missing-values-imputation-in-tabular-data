@@ -2,18 +2,23 @@ import torch
 
 from DDPM.diffusion import Diffusion1d
 from DDPM.schedulers import CosineScheduler
-from DDPM.models import Diffusion1dDefaultModel
+from DDPM.denoisers import SimpleMLP
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 
 DATA_SIZE = 5
 NUM_FEATURES = 10
 
-train_data = torch.randn(DATA_SIZE, NUM_FEATURES)
+train_data = torch.randn(DATA_SIZE, NUM_FEATURES).to(device)
 
-diffusion_scheduler = CosineScheduler()
-diffusion_model = Diffusion1d(num_features=NUM_FEATURES, scheduler=diffusion_scheduler)
-denoiser = Diffusion1dDefaultModel(num_features=NUM_FEATURES)
+denoiser = SimpleMLP(NUM_FEATURES)
+diffusion = Diffusion1d(NUM_FEATURES, timesteps=1000, denoiser=denoiser)
+diff_scheduler = CosineScheduler(diffusion)
 
-diffused, ts, noise = diffusion_model(train_data)
+diffusion.train()
+
+diffused, ts, noise = diffusion(train_data)
 
 print("-" * 50)
 print("Diffused train data:")
@@ -27,7 +32,9 @@ print("-" * 50)
 print("Added noise:")
 print(noise)
 
-sample = diffusion_model.sample(denoiser_model=denoiser)
+diffusion.eval()
+
+sample = diffusion.sample()
 print("-" * 50)
 print("Sample")
 print(sample)
